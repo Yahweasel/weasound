@@ -7,7 +7,7 @@ const tsify = require("tsify");
 
 let noImplicitAny = false;
 let main = "src/main.ts";
-let standalone = "RTEnnui";
+let standalone = "Weasound";
 for (let ai = 2; ai < process.argv.length; ai++) {
     const arg = process.argv[ai];
     if (arg === "-n" || arg === "--no-implicit-any")
