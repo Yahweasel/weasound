@@ -51,9 +51,10 @@ export abstract class AudioPlayback extends events.EventEmitter {
     }
 
     /**
-     * Play this audio.
+     * Play this audio. Returns the approximate latency, in milliseconds, with
+     * which the audio will play.
      */
-    abstract play(data: Float32Array[]): void;
+    abstract play(data: Float32Array[]): number;
 
     /**
      * Pipe audio from this message port. Same format as pipe() in
@@ -93,9 +94,20 @@ export abstract class AudioPlayback extends events.EventEmitter {
     }
 
     /**
-     * Get the underlying number of channels.
+     * Get the underlying number of channels. An AudioPlayback will play as many
+     * channels as you give it, but may duplicate or discard channels in an
+     * unusual way if the number doesn't match this.
      */
     abstract channels(): number;
+
+    /**
+     * Get the *estimated* latency of playing with this mechanism, in
+     * milliseconds. The reported latency will be if no audio is currently
+     * buffered; use the return value of play() for a more accurate result with
+     * buffering (though even then, how accurate it is depends on the
+     * underlying system used).
+     */
+    abstract latency(): number;
 
     /**
      * Get the underlying AudioNode, *if* there is a unique audio node for this
@@ -148,11 +160,16 @@ export class AudioPlaybackAB extends AudioPlayback {
             st = this._ac.currentTime + 0.02;
         abs.start(st);
         this._nextTime = st + data[0].length / this._ac.sampleRate;
+        return (st - this._ac.currentTime) * 1000;
     }
 
     override channels(): number {
         // This is just made up, which isn't ideal
         return 2;
+    }
+
+    override latency(): number {
+        return 20; // Default latency of the first buffer, see above
     }
 
     override unsharedNode(): AudioNode {
@@ -214,6 +231,10 @@ export class AudioPlaybackAWP extends AudioPlayback {
      */
     play(data: Float32Array[]) {
         this._worklet.port.postMessage(data, data.map(x => x.buffer));
+
+        /* This is purely an approximation, as the worklet does not report
+         * latency back to us. See `idealBuf` in the worklet code. */
+        return 50;
     }
 
     /**
@@ -223,11 +244,12 @@ export class AudioPlaybackAWP extends AudioPlayback {
         this._worklet.port.postMessage({c: "in", p: port}, [port]);
     }
 
-    /**
-     * Get the underlying number of channels.
-     */
-    channels() {
+    override channels(): number {
         return 1;
+    }
+
+    override latency(): number {
+        return 50; // approximate
     }
 
     /**
@@ -314,6 +336,7 @@ export class AudioPlaybackSharedAWP extends AudioPlayback {
     play(data: Float32Array[]) {
         if (this._port)
             this._port.postMessage(data, data.map(x => x.buffer));
+        return 50;
     }
 
     /**
@@ -324,11 +347,12 @@ export class AudioPlaybackSharedAWP extends AudioPlayback {
             this._port.postMessage({c: "in", p: port}, [port]);
     }
 
-    /**
-     * Get the underlying number of channels.
-     */
     channels() {
         return 1;
+    }
+
+    override latency(): number {
+        return 50; // approximate
     }
 
     /**
@@ -455,15 +479,23 @@ export class AudioPlaybackSP extends AudioPlayback {
      * Play this audio.
      */
     play(data: Float32Array[]) {
+        const prevBufLen = this._bufLen;
         this._bufLen += data[0].length;
         this._buf.push(data.map(x => x.slice(0)));
+
+        /* The latency comes from both the length of the buffer *and* the fact
+         * that ScriptProcessor only pulls as often as you specify. We specified
+         * 4096 above, so half of that is the expected latency until the next
+         * buffer is pulled. */
+        return (prevBufLen + 2048) / this._ac.sampleRate * 1000;
     }
 
-    /**
-     * Get the underlying number of channels.
-     */
     channels() {
         return 1;
+    }
+
+    override latency(): number {
+        return 2048 / this._ac.sampleRate * 1000;
     }
 
     /**

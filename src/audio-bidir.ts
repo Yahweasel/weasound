@@ -315,15 +315,28 @@ class AudioBidirSPPlayback extends audioPlayback.AudioPlayback {
         this._playing = false;
     }
 
-    override play(data: Float32Array[]): void {
+    override play(data: Float32Array[]): number {
         if (!this._closed) {
+            const prevBufLen = this._bufLen;
             this._bufLen += data[0].length;
             this._buf.push(data);
+
+            /* The latency comes from both the length of the buffer *and* the fact
+             * that ScriptProcessor only pulls as often as you specify. */
+            return (prevBufLen + this.parent._sp.bufferSize / 2) /
+                this.parent._ac.sampleRate * 1000;
+
         }
+
+        return 0;
     }
 
     override channels(): number {
         return 1;
+    }
+
+    override latency(): number {
+        return this.parent._sp.bufferSize / 2 / this.parent._ac.sampleRate * 1000;
     }
 
     override sharedNode(): AudioNode {
