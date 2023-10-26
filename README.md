@@ -215,3 +215,10 @@ system is used because the browser's event system wraps everything in unneeded
 `Event` objects.
 
 `EventEmitter` is exported and can be subclassed.
+
+
+## Demo
+
+The file `demo/loopback/loopback.html` is a very simple demonstration of using
+the capture and playback mechanisms as a loopback. It uses libav.js for
+resampling (in case the input and output sample rates aren't the same).

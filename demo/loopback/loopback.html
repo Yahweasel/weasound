@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf8" />
+        <title>Loopback demo</title>
+    </head>
+    <body>
+        <script type="text/javascript" src="../../weasound.js"></script>
+        
+        <script type="text/javascript">LibAV = {base: "../../node_modules/libav.js/dist"};</script>
+        <script type="text/javascript" src="../../node_modules/libav.js/dist/libav-4.5.6.0-default.js"></script>
+
+        <script type="text/javascript">
+            async function go() {
+                const ms = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: false
+                    }
+                });
+                const ac = new AudioContext();
+
+                // Create a playback
+                const playback = await Weasound.createAudioPlayback(ac);
+                playback.unsharedNode().connect(ac.destination);
+
+                // Create a capture
+                const capture = await Weasound.createAudioCapture(ac, ms);
+
+                // Create the resampler
+                const libav = await LibAV.LibAV({noworker: true});
+                const frame = await libav.av_frame_alloc();
+                const [filter_graph, buffersrc_ctx, buffersink_ctx] =
+                    await libav.ff_init_filter_graph("aresample", {
+                        sample_rate: capture.getSampleRate(),
+                        sample_fmt: libav.AV_SAMPLE_FMT_FLT,
+                        channel_layout: 4
+                    }, {
+                        sample_rate: ac.sampleRate,
+                        sample_fmt: libav.AV_SAMPLE_FMT_FLT,
+                        channel_layout: 4
+                    });
+
+                // And pipe the data thru
+                capture.on("data", async data => {
+                    const filterFrames =
+                        await libav.ff_filter_multi(
+                            buffersrc_ctx, buffersink_ctx, frame, [{
+                            data: data[0],
+                            channel_layout: 4,
+                            format: libav.AV_SAMPLE_FMT_FLT,
+                            sample_rate: capture.getSampleRate()
+                        }]);
+                    for (const frame of filterFrames) {
+                        const latency = playback.play([frame.data]);
+                        console.log(`Estimated latency: ${latency}`);
+                    }
+                });
+            }
+        </script>
+
+        <button onclick="go();">Go</button>
+    </body>
+</html>

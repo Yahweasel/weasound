@@ -23,7 +23,7 @@
   "devDependencies": {
     "browser-pack-flat": "^3.5.0",
     "browserify": "^17.0.0",
-    "libav.js": "^4.5.6",
+    "libav.js": "4.5.6",
     "minify": "^10.5.2",
     "minify-stream": "^2.1.0",
     "npm": "^10.2.1",
