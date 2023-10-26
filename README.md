@@ -100,6 +100,11 @@ data may not also be sent by the standard `data` event.
 
 Make sure to `close` an `AudioCapture` when you're done with it!
 
+The `AudioCapture` interface is capable of passing through voice activity
+detection (VAD) events, but Weasound does not implement VAD itself, and simply
+passes through events given to it by `setVADState`. `AudioCapture` can be used
+without any consideration of this VAD system if you don't need it.
+
 
 ## Playback
 ```
