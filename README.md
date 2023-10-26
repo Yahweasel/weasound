@@ -222,3 +222,7 @@ system is used because the browser's event system wraps everything in unneeded
 The file `demo/loopback/loopback.html` is a very simple demonstration of using
 the capture and playback mechanisms as a loopback. It uses libav.js for
 resampling (in case the input and output sample rates aren't the same).
+
+The file `demo/playback/playback.html` is an equally simple demonstration of
+using the playback subsystem only to play an audio file. The audio file must be
+decodable by libav.js.
