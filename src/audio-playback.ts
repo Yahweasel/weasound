@@ -232,9 +232,15 @@ export class AudioPlaybackAWP extends AudioPlayback {
     play(data: Float32Array[]) {
         this._worklet.port.postMessage(data, data.map(x => x.buffer));
 
-        /* This is purely an approximation, as the worklet does not report
-         * latency back to us. See `idealBuf` in the worklet code. */
-        return 50;
+        // Estimate the delay (as we don't get feedback from the worklet)
+        const now = performance.now();
+        const time = data[0].length / this._ac.sampleRate;
+        if (this._endTime > now)
+            this._endTime += time;
+        else
+            this._endTime = now + 50 /* buffer time */ + time;
+
+        return this._endTime - time - now;
     }
 
     /**
@@ -279,6 +285,11 @@ export class AudioPlaybackAWP extends AudioPlayback {
      * The worklet itself.
      */
     private _worklet: AudioWorkletNode;
+
+    /**
+     * End time of the most recent buffer.
+     */
+    private _endTime = -1;
 }
 
 /**
@@ -336,7 +347,14 @@ export class AudioPlaybackSharedAWP extends AudioPlayback {
     play(data: Float32Array[]) {
         if (this._port)
             this._port.postMessage(data, data.map(x => x.buffer));
-        return 50;
+
+        const now = performance.now();
+        const time = data[0].length / this._ac.sampleRate;
+        if (this._endTime > now)
+            this._endTime += time;
+        else
+            this._endTime = now + 50 + time;
+        return this._endTime - time - now;
     }
 
     /**
@@ -382,6 +400,11 @@ export class AudioPlaybackSharedAWP extends AudioPlayback {
      * The port to communicate with the worklet.
      */
     private _port: MessagePort;
+
+    /**
+     * Estimated end time of the current samples.
+     */
+    private _endTime = -1;
 }
 
 /**
