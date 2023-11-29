@@ -15,7 +15,7 @@ bundlers. It cannot be used in Node.js.
 
 
 ## Capture
-```
+```js
 /**
  * Create an appropriate audio capture from an AudioContext and a MediaStream.
  * @param ac  The AudioContext for the nodes.
@@ -37,7 +37,7 @@ used, as the best capture technology will be chosen automatically.)
 
 The `AudioCapture` interface is as follows:
 
-```
+```js
 /**
  * General interface for any audio capture subsystem, user-implementable.
  *
@@ -107,7 +107,7 @@ without any consideration of this VAD system if you don't need it.
 
 
 ## Playback
-```
+```js
 /**
  * Create an appropriate audio playback from an AudioContext.
  */
@@ -127,7 +127,7 @@ used, as the best playback technology will be chosen automatically.)
 
 The `AudioPlayback` interface is as follows:
 
-```
+```js
 /**
  * General interface for any audio playback subsystem, user implementable.
  */
@@ -186,7 +186,7 @@ memory, using `pipeFrom`. Close this audio playback with `close`.
 
 
 ## Events
-```
+```js
 /**
  * General-purpose event emitter.
  */
