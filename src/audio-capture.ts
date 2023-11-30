@@ -462,7 +462,15 @@ export class AudioCaptureMR extends AudioCapture {
 
             const sampleRate = await libav.AVCodecContext_sample_rate(c);
             const sampleFmt = await libav.AVCodecContext_sample_fmt(c);
-            const channelLayout = await libav.AVCodecContext_channel_layout(c);
+            let channelLayout = await libav.AVCodecContext_channel_layout(c);
+            if (!channelLayout) {
+                // Estimate channel layout from # of channels
+                channelLayout =
+                    (1 << await libav.AVCodecContext_channels(c)) - 1;
+                if (channelLayout === 1)
+                    channelLayout = 4;
+            }
+            console.log(`${sampleRate} ${sampleFmt} ${channelLayout}`);
 
             // And filtering
             const [filter_graph, buffersrc_ctx, buffersink_ctx] =
