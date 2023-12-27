@@ -6,10 +6,10 @@ SRC=\
 all: weasound.js weasound.min.js
 
 weasound.js: $(SRC) node_modules/.bin/browserify
-	./src/build.js > $@
+	./src/build.js | cat src/license.js - > $@
 
 weasound.min.js: weasound.js node_modules/.bin/browserify
-	./node_modules/.bin/minify --js < $< | cat src/license.js - > $@
+	./node_modules/.bin/uglifyjs -m < $< | cat src/license.js - > $@
 
 %-js.ts: %.ts node_modules/.bin/browserify
 	./node_modules/.bin/tsc --target es2017 --lib es2017,dom $< \
