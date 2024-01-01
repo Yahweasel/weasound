@@ -71,6 +71,12 @@ export abstract class AudioCapture extends events.EventEmitter {
     abstract getSampleRate(): number;
 
     /**
+     * Get the approximate latency of this capture in milliseconds. Includes the
+     * latency of the device if known.
+     */
+    abstract getLatency(): number;
+
+    /**
      * Get the current VAD state.
      */
     getVADState(): VADState { return this._vadState; }
@@ -126,6 +132,7 @@ export class AudioCaptureMSTP extends AudioCapture {
         super();
         this._dead = false;
         this._mstp = new MediaStreamTrackProcessor({track: _input});
+        this._mstpSize = 1024;
         this._reader = this._mstp.readable.getReader();
         this._promise = this._reader.read()
             .then(x => this.onread(x))
@@ -134,6 +141,16 @@ export class AudioCaptureMSTP extends AudioCapture {
 
     override getSampleRate(): number {
         return this._input.getSettings().sampleRate;
+    }
+
+    override getLatency(): number {
+        const inputSettings = this._input.getSettings();
+        return (
+            // Device latency
+            ((<any> inputSettings).latency || 0) +
+            // MSTP latency
+            (this._mstpSize / inputSettings.sampleRate)
+        ) * 1000;
     }
 
     override close(): void {
@@ -173,6 +190,7 @@ export class AudioCaptureMSTP extends AudioCapture {
             ret.push(cd);
         }
         value.close();
+        this._mstpSize = ret[0].length;
 
         this.emitEvent("data", ret);
 
@@ -183,6 +201,7 @@ export class AudioCaptureMSTP extends AudioCapture {
 
     private _dead: boolean;
     private _mstp: any;
+    private _mstpSize: number;
     private _reader: ReadableStreamDefaultReader<any>;
     private _promise: Promise<unknown>;
 }
@@ -193,12 +212,14 @@ export class AudioCaptureMSTP extends AudioCapture {
 export class AudioCaptureAWP extends AudioCapture {
     constructor(
         private _ac: AudioContext & {rteCapWorklet?: Promise<unknown>},
+        private _ms: MediaStream | null,
         private _input: AudioNode
     ) {
         super();
         this._worklet = null;
         this._incoming = null;
         this._incomingH = null;
+        this._incomingSize = 128;
         this._waiter = null;
     }
 
@@ -253,6 +274,22 @@ export class AudioCaptureAWP extends AudioCapture {
 
     override getSampleRate() { return this._ac.sampleRate; }
 
+    override getLatency() {
+        let deviceLatency = 0;
+        if (this._ms) {
+            const inputSettings =
+                this._ms.getAudioTracks()[0].getSettings();
+            deviceLatency = (<any> inputSettings).latency || 0;
+        }
+        return (
+            // Device latency
+            deviceLatency +
+
+            // Worklet latency
+            (this._incomingSize / this._ac.sampleRate)
+        ) * 1000;
+    }
+
     /**
      * Message handler for messages from the worker.
      */
@@ -260,6 +297,7 @@ export class AudioCaptureAWP extends AudioCapture {
         const msg = ev.data;
         if (msg.length) {
             // It's raw data
+            this._incomingSize = msg[0].length;
             this.emitEvent("data", msg);
 
         } else if (msg.c === "buffers") {
@@ -285,7 +323,7 @@ export class AudioCaptureAWP extends AudioCapture {
         // Copy it into buffers
         const [lo, hi]: [number, number] = ev.data;
         let buf: Float32Array[] = [];
-        let len = hi - lo;
+        let len = this._incomingSize = hi - lo;
         const channels = this._incoming.length;
         if (len >= 0) {
             for (const channel of this._incoming)
@@ -364,6 +402,11 @@ export class AudioCaptureAWP extends AudioCapture {
     private _incomingH: Int32Array;
 
     /**
+     * Size of packets coming from the worklets.
+     */
+    private _incomingSize: number;
+
+    /**
      * Worker thread waiting for new incoming data.
      */
     private _waiter: Worker;
@@ -378,6 +421,7 @@ export class AudioCaptureMR extends AudioCapture {
         private _mimeType: string
     ) {
         super();
+        this._packetSize = 1024;
     }
 
     /**
@@ -520,8 +564,14 @@ export class AudioCaptureMR extends AudioCapture {
                                                 frame, rawFrames, false);
 
                 // Present
-                for (const frame of frames)
+                let size = 0;
+                for (const frame of frames) {
                     this.emitEvent("data", frame.data);
+                    size += frame.data[0].length;
+                }
+
+                // And remember our size
+                this._packetSize = size;
             }
         })();
     }
@@ -537,6 +587,14 @@ export class AudioCaptureMR extends AudioCapture {
 
     override getSampleRate() {
         return this._ac.sampleRate;
+    }
+
+    override getLatency(): number {
+        const inputSettings = this._ms.getAudioTracks[0].getSettings();
+        return (
+            ((<any> inputSettings).latency || 0) +
+            (this._packetSize / this._ac.sampleRate)
+        ) * 1000;
     }
 
     /**
@@ -573,6 +631,11 @@ export class AudioCaptureMR extends AudioCapture {
      * Timeout to refresh.
      */
     private _refreshTimeout: number | null;
+
+    /**
+     * Size of packets from the MediaRecorder.
+     */
+    private _packetSize: number;
 }
 
 /**
@@ -581,6 +644,7 @@ export class AudioCaptureMR extends AudioCapture {
 export class AudioCaptureSP extends AudioCapture {
     constructor(
         private _ac: AudioContext,
+        private _ms: MediaStream | null,
         private _input: AudioNode
     ) {
         super();
@@ -600,6 +664,18 @@ export class AudioCaptureSP extends AudioCapture {
     }
 
     override getSampleRate() { return this._ac.sampleRate; }
+
+    override getLatency() {
+        let deviceLatency = 0;
+        if (this._ms) {
+            const inputSettings = this._ms.getAudioTracks()[0].getSettings();
+            deviceLatency = (<any> inputSettings).latency || 0;
+        }
+        return (
+            deviceLatency +
+            (1024 / this._ac.sampleRate)
+        ) * 1000;
+    }
 
     /**
      * Close and destroy this script processor.
@@ -692,15 +768,17 @@ export async function createAudioCaptureNoBidir(
     if ((<MediaStream> ms).getAudioTracks) {
         // Looks like a media stream
         node = ac.createMediaStreamSource(<MediaStream> ms);
+    } else {
+        ms = null;
     }
 
     if (choice === "awp") {
-        const ret = new AudioCaptureAWP(ac, node);
+        const ret = new AudioCaptureAWP(ac, <MediaStream> ms, node);
         await ret.init();
         return ret;
 
     } else {
-        return new AudioCaptureSP(ac, node);
+        return new AudioCaptureSP(ac, <MediaStream> ms, node);
 
     }
 }

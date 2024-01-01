@@ -51,8 +51,9 @@
                             sample_rate: capture.getSampleRate()
                         }]);
                     for (const frame of filterFrames) {
-                        const latency = playback.play([frame.data]);
-                        console.log(`Estimated latency: ${latency}`);
+                        const latencyIn = capture.getLatency();
+                        const latencyOut = playback.play([frame.data]);
+                        console.log(`Estimated latency: ${latencyIn} in + ${latencyOut} out`);
                     }
                 });
             }

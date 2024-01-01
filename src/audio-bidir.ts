@@ -26,7 +26,7 @@ export abstract class AudioBidir {
     /**
      * Create a new capture node associated with this bidirectional node.
      */
-    abstract createCapture(mss: AudioNode):
+    abstract createCapture(ms: MediaStream | null, mss: AudioNode):
         Promise<audioCapture.AudioCapture>;
 
     /**
@@ -68,9 +68,9 @@ export class AudioBidirSP extends AudioBidir {
         const maxBuf = sampleRate >> 1;
 
         // Create the script processor
-        const sp = this._sp = _ac.createScriptProcessor(
-            util.bugNeedLargeBuffers() ? 4096 : 1024,
-            1, 1);
+        const spBufSize = this._spBufSize =
+            util.bugNeedLargeBuffers() ? 4096 : 1024;
+        const sp = this._sp = _ac.createScriptProcessor(spBufSize, 1, 1);
 
         // Set up its event
         sp.onaudioprocess = ev => {
@@ -167,6 +167,7 @@ export class AudioBidirSP extends AudioBidir {
     }
 
     override createCapture(
+        ms: MediaStream | null,
         mss: AudioNode
     ): Promise<audioCapture.AudioCapture> {
         if (this._capture)
@@ -177,7 +178,7 @@ export class AudioBidirSP extends AudioBidir {
             this._null = null;
         }
         return Promise.resolve(
-            this._capture = new AudioBidirSPCapture(this, mss)
+            this._capture = new AudioBidirSPCapture(this, ms, mss)
         );
     }
 
@@ -201,6 +202,12 @@ export class AudioBidirSP extends AudioBidir {
         for (const pb of this._playback.slice(0))
             pb.close();
     }
+
+    /**
+     * The size of the buffer used for the ScriptProcessor.
+     * @private
+     */
+    _spBufSize: number;
 
     /**
      * The underlying ScriptProcessor.
@@ -241,6 +248,11 @@ class AudioBidirSPCapture extends audioCapture.AudioCapture {
         public parent: AudioBidirSP,
 
         /**
+         * The associated MediaStream, if there is one.
+         */
+        private _ms: MediaStream | null,
+
+        /**
          * The associated audio source.
          */
         public mss: AudioNode
@@ -255,6 +267,18 @@ class AudioBidirSPCapture extends audioCapture.AudioCapture {
 
     override getSampleRate(): number {
         return this.parent._ac.sampleRate;
+    }
+
+    override getLatency(): number {
+        let deviceLatency = 0;
+        if (this._ms) {
+            const inputSettings = this._ms.getAudioTracks()[0].getSettings();
+            deviceLatency = (<any> inputSettings).latency || 0;
+        }
+        return (
+            deviceLatency +
+            (this.parent._spBufSize / this.parent._ac.sampleRate)
+        ) * 1000;
     }
 
     override close(): void {
@@ -415,8 +439,10 @@ export async function createAudioCapture(
         if ((<MediaStream> ms).getAudioTracks) {
             // Looks like a MediaStream
             node = ac.createMediaStreamSource(<MediaStream> ms);
+        } else {
+            ms = null;
         }
-        return ab.createCapture(node);
+        return ab.createCapture(<MediaStream> ms, node);
     }
 
     return audioCapture.createAudioCaptureNoBidir(ac, ms, opts);
