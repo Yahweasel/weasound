@@ -40,6 +40,12 @@ export interface AudioPlaybackOptions {
      * Demanded type, whether supported or not.
      */
     demandedType?: AudioPlaybackType;
+
+    /**
+     * Buffer size in ms. Increase to decrease the odds of scratchy/glitchy audio.
+     * Note that not all backends support adjusting this buffer.
+     */
+    bufferSize?: number;
 }
 
 /**
@@ -134,7 +140,7 @@ export abstract class AudioPlayback extends events.EventEmitter {
  * Audio playback using AudioBufferSources.
  */
 export class AudioPlaybackAB extends AudioPlayback {
-    constructor(private _ac: AudioContext) {
+    constructor(private _ac: AudioContext, private _bufferSize: number) {
         super();
         this._nextTime = -1;
         this._node = _ac.createGain();
@@ -157,7 +163,7 @@ export class AudioPlaybackAB extends AudioPlayback {
         // Figure out the start time
         let st = this._nextTime;
         if (st < this._ac.currentTime)
-            st = this._ac.currentTime + 0.02;
+            st = this._ac.currentTime + this._bufferSize / 1000;
         abs.start(st);
         this._nextTime = st + data[0].length / this._ac.sampleRate;
         return (st - this._ac.currentTime) * 1000;
@@ -603,7 +609,7 @@ export async function createAudioPlaybackNoBidir(
         return ret;
 
     } else if (choice === "ab") {
-        return new AudioPlaybackAB(ac);
+        return new AudioPlaybackAB(ac, opts.bufferSize || 0.05);
 
     } else {
         return new AudioPlaybackSP(ac);
