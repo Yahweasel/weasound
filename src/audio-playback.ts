@@ -609,7 +609,7 @@ export async function createAudioPlaybackNoBidir(
         return ret;
 
     } else if (choice === "ab") {
-        return new AudioPlaybackAB(ac, opts.bufferSize || 0.05);
+        return new AudioPlaybackAB(ac, opts.bufferSize || 50);
 
     } else {
         return new AudioPlaybackSP(ac);
