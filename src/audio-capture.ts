@@ -514,7 +514,6 @@ export class AudioCaptureMR extends AudioCapture {
                 if (channelLayout === 1)
                     channelLayout = 4;
             }
-            console.log(`${sampleRate} ${sampleFmt} ${channelLayout}`);
 
             // And filtering
             const [filter_graph, buffersrc_ctx, buffersink_ctx] =
@@ -590,7 +589,7 @@ export class AudioCaptureMR extends AudioCapture {
     }
 
     override getLatency(): number {
-        const inputSettings = this._ms.getAudioTracks[0].getSettings();
+        const inputSettings = this._ms.getAudioTracks()[0].getSettings();
         return (
             ((<any> inputSettings).latency || 0) +
             (this._packetSize / this._ac.sampleRate)

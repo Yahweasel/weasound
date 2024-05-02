@@ -1,24 +1,37 @@
+GEN_SRC=\
+	src/cap-awp-js.ts src/cap-worker-js.ts src/cap-worker-waiter-js.ts \
+	src/play-awp-js.ts src/play-shared-awp-js.ts
+
 SRC=\
-	src/*.ts src/cap-awp-js.ts src/cap-worker-js.ts \
-	src/cap-worker-waiter-js.ts src/play-awp-js.ts \
-	src/play-shared-awp-js.ts
+	src/audio-bidir.js src/audio-capture.js src/audio-playback.js \
+	src/events.js src/main.js src/util.js \
+	\
+	src/cap-awp-js.js src/cap-worker-js.js src/cap-worker-waiter-js.js \
+	src/play-awp-js.js src/play-shared-awp-js.js
 
-all: weasound.js weasound.min.js
+all: dist/weasound.js dist/weasound.min.js
 
-weasound.js: $(SRC) node_modules/.bin/browserify
-	./src/build.js | cat src/license.js - > $@
+dist/weasound.js: $(SRC) node_modules/.bin/tsc
+	./node_modules/.bin/rollup -c
 
-weasound.min.js: weasound.js node_modules/.bin/browserify
-	./node_modules/.bin/uglifyjs -m < $< | cat src/license.js - > $@
+dist/weasound.min.js: dist/weasound.js node_modules/.bin/tsc
+	true
 
-%-js.ts: %.ts node_modules/.bin/browserify
+%-js.ts: %.ts node_modules/.bin/tsc
 	./node_modules/.bin/tsc --target es2017 --lib es2017,dom $< \
 		--outFile $@.tmp
-	./src/build-sourcemod.js < $@.tmp > $@
+	./build-sourcemod.js < $@.tmp > $@
 	rm -f $@.tmp
 
-node_modules/.bin/browserify:
+%.js: %.ts $(GEN_SRC) node_modules/.bin/tsc
+	./node_modules/.bin/tsc --target es6 --lib es2015,dom \
+		--moduleResolution node $<
+
+node_modules/.bin/tsc:
 	npm install
 
 clean:
-	rm -f weasound.js weasound.min.js src/*-js.ts
+	rm -rf dist
+	rm -f $(SRC) $(GEN_SRC)
+
+.PRECIOUS: $(GEN_SRC)

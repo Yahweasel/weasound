@@ -1,5 +1,4 @@
 node_modules/
-package-lock.json
 src/*-js.ts
 weasound.js
 weasound.min.js

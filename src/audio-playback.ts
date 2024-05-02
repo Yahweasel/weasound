@@ -236,11 +236,12 @@ export class AudioPlaybackAWP extends AudioPlayback {
      * @param data  Audio to play.
      */
     play(data: Float32Array[]) {
+        const now = performance.now();
+        const time = data[0].length / this._ac.sampleRate * 1000;
+
         this._worklet.port.postMessage(data, data.map(x => x.buffer));
 
         // Estimate the delay (as we don't get feedback from the worklet)
-        const now = performance.now();
-        const time = data[0].length / this._ac.sampleRate * 1000;
         if (this._endTime > now)
             this._endTime += time;
         else
@@ -351,11 +352,12 @@ export class AudioPlaybackSharedAWP extends AudioPlayback {
      * @param data  Audio to play.
      */
     play(data: Float32Array[]) {
+        const now = performance.now();
+        const time = data[0].length / this._ac.sampleRate * 1000;
+
         if (this._port)
             this._port.postMessage(data, data.map(x => x.buffer));
 
-        const now = performance.now();
-        const time = data[0].length / this._ac.sampleRate * 1000;
         if (this._endTime > now)
             this._endTime += time;
         else
