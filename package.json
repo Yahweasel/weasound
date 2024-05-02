@@ -5,7 +5,7 @@
   "main": "dist/weasound.min.js",
   "types": "src/main.ts",
   "scripts": {
-    "build": "make",
+    "build": "make -j9",
     "clean": "make clean",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
