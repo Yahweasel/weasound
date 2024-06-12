@@ -23,12 +23,12 @@
   "author": "Yahweasel",
   "license": "ISC",
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^25.0.7",
-    "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^11.1.6",
     "libav.js": "4.5.6",
     "rollup": "^4.17.2",
     "terser": "^5.31.0",
+    "tslib": "^2.6.3",
     "typescript": "^5.4.5"
   }
 }

@@ -1,10 +1,9 @@
 import * as fs from "fs/promises";
-import nodeResolve from "@rollup/plugin-node-resolve";
-import commonjs from "@rollup/plugin-commonjs";
+import typescript from "@rollup/plugin-typescript";
 import terser from "@rollup/plugin-terser";
 
 export default {
-    input: "src/main.js",
+    input: "src/main.ts",
     output: [
         {
             file: "dist/weasound.js",
@@ -22,5 +21,19 @@ export default {
         }
     ],
     context: "this",
-    plugins: [nodeResolve(), commonjs()]
+    plugins: [
+        typescript({
+            compilerOptions: {
+                target: "es5",
+                lib: ["es2015", "dom"]
+            },
+            exclude: [
+                "src/cap-awp.ts",
+                "src/cap-worker.ts",
+                "src/cap-worker-waiter.ts",
+                "src/play-awp.ts",
+                "src/play-shared-awp.ts"
+            ]
+        })
+    ]
 };
