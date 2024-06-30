@@ -356,7 +356,7 @@ class AudioBidirSPPlayback extends audioPlayback.AudioPlayback {
     }
 
     override playing(): boolean {
-        return true;
+        return (this._buf.length > 0);
     }
 
     override channels(): number {
