@@ -63,6 +63,13 @@ export abstract class AudioPlayback extends events.EventEmitter {
     abstract play(data: Float32Array[]): number;
 
     /**
+     * Best-effort report whether audio is currently playing. That is, reports
+     * whether audio posted right now will be played at the end of a buffer of
+     * audio already playing.
+     */
+    abstract playing(): boolean;
+
+    /**
      * Pipe audio from this message port. Same format as pipe() in
      * AudioCapture.
      */
@@ -142,6 +149,7 @@ export abstract class AudioPlayback extends events.EventEmitter {
 export class AudioPlaybackAB extends AudioPlayback {
     constructor(private _ac: AudioContext, private _bufferSize: number) {
         super();
+        this._bufferSizeS = _bufferSize / 1000;
         this._nextTime = -1;
         this._node = _ac.createGain();
     }
@@ -163,10 +171,14 @@ export class AudioPlaybackAB extends AudioPlayback {
         // Figure out the start time
         let st = this._nextTime;
         if (st < this._ac.currentTime)
-            st = this._ac.currentTime + this._bufferSize / 1000;
+            st = this._ac.currentTime + this._bufferSizeS;
         abs.start(st);
         this._nextTime = st + data[0].length / this._ac.sampleRate;
         return (st - this._ac.currentTime) * 1000;
+    }
+
+    override playing(): boolean {
+        return this._nextTime < this._ac.currentTime;
     }
 
     override channels(): number {
@@ -175,7 +187,7 @@ export class AudioPlaybackAB extends AudioPlayback {
     }
 
     override latency(): number {
-        return 20; // Default latency of the first buffer, see above
+        return this._bufferSize;
     }
 
     override unsharedNode(): AudioNode {
@@ -185,6 +197,9 @@ export class AudioPlaybackAB extends AudioPlayback {
     override close(): void {
         this._node.disconnect();
     }
+
+    // Buffer size in seconds, for AudioContext
+    private _bufferSizeS: number;
 
     // The time to play the next frame, in AudioContext units
     private _nextTime: number;
@@ -248,6 +263,10 @@ export class AudioPlaybackAWP extends AudioPlayback {
             this._endTime = now + 50 /* buffer time */ + time;
 
         return this._endTime - time - now;
+    }
+
+    override playing(): boolean {
+        return (this._endTime > performance.now());
     }
 
     /**
@@ -363,6 +382,10 @@ export class AudioPlaybackSharedAWP extends AudioPlayback {
         else
             this._endTime = now + 50 + time;
         return this._endTime - time - now;
+    }
+
+    override playing(): boolean {
+        return (this._endTime > performance.now());
     }
 
     /**
@@ -519,6 +542,10 @@ export class AudioPlaybackSP extends AudioPlayback {
          * 4096 above, so half of that is the expected latency until the next
          * buffer is pulled. */
         return (prevBufLen + 2048) / this._ac.sampleRate * 1000;
+    }
+
+    playing(): boolean {
+        return (this._buf.length > 0);
     }
 
     channels() {
