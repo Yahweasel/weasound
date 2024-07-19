@@ -64,8 +64,7 @@ class CaptureProcessor extends AudioWorkletProcessor {
 
         // Can we use shared memory?
         this.canShared =
-            typeof SharedArrayBuffer !== "undefined" &&
-            self.crossOriginIsolated;
+            typeof SharedArrayBuffer !== "undefined";
 
         this.port.onmessage = ev => {
             const msg = ev.data;
@@ -115,12 +114,20 @@ class CaptureProcessor extends AudioWorkletProcessor {
                 this.outgoingH = new Int32Array(new SharedArrayBuffer(4));
 
                 // Tell the worker about our buffers
-                console.log("[INFO] AWP: Using shared memory");
-                this.out.postMessage({
-                    c: "buffers",
-                    buffers: this.outgoing,
-                    head: this.outgoingH
-                });
+                try {
+                    this.out.postMessage({
+                        c: "buffers",
+                        buffers: this.outgoing,
+                        head: this.outgoingH
+                    });
+                    console.log("[INFO] AWP: Using shared memory");
+                } catch (ex) {
+                    // Failed to actually share
+                    this.canShared = false;
+                    this.outgoing = null;
+                    this.outgoingH = null;
+                    console.log("[INFO] AWP: Not using shared memory");
+                }
             } else {
                 console.log("[INFO] AWP: Not using shared memory");
             }
