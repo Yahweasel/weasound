@@ -64,7 +64,7 @@ class PlaybackProcessor extends AudioWorkletProcessor {
 
         // Start assuming unshared, so create our own ring buffer
         this.incoming = [];
-        this.incomingH = (typeof SharedArrayBuffer !== "undefined")
+        this.incomingH = (typeof SharedArrayBuffer !== "undefined" && self.crossOriginIsolated)
             ? new Int32Array(new SharedArrayBuffer(4))
             : new Int32Array(1);
         this.readHead = 0;

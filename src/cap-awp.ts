@@ -64,7 +64,8 @@ class CaptureProcessor extends AudioWorkletProcessor {
 
         // Can we use shared memory?
         this.canShared =
-            typeof SharedArrayBuffer !== "undefined";
+            typeof SharedArrayBuffer !== "undefined" &&
+            self.crossOriginIsolated;
 
         this.port.onmessage = ev => {
             const msg = ev.data;

@@ -20,7 +20,8 @@ const bufSz = 96000;
 
 // Set if we can use shared memory for our output
 const canShared =
-    typeof SharedArrayBuffer !== "undefined";
+    typeof SharedArrayBuffer !== "undefined" &&
+    self.crossOriginIsolated;
 
 // Incoming buffers if shared memory is used
 let incoming: Float32Array[] = null;
