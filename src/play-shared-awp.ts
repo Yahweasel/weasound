@@ -117,6 +117,9 @@ class SharedPlaybackProcessor extends AudioWorkletProcessor {
             // Assign a new buffer for it
             let idx = 0;
             for (idx = 0; idx < this.inUse.length && this.inUse[idx]; idx++) {}
+            let crossOriginIsolated = true;
+            if (typeof self !== "undefined")
+                crossOriginIsolated = !!self.crossOriginIsolated;
             if (idx >= this.inUse.length) {
                 // Create a new one
                 this.inUse.push(true);
