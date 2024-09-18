@@ -124,7 +124,7 @@ class SharedPlaybackProcessor extends AudioWorkletProcessor {
                 // Create a new one
                 this.inUse.push(true);
                 this.incoming.push([]);
-                this.incomingH.push((typeof SharedArrayBuffer !== "undefined" && self.crossOriginIsolated)
+                this.incomingH.push((typeof SharedArrayBuffer !== "undefined" && crossOriginIsolated)
                     ? new Int32Array(new SharedArrayBuffer(4))
                     : new Int32Array(1));
                 this.readHead.push(0);
@@ -132,7 +132,7 @@ class SharedPlaybackProcessor extends AudioWorkletProcessor {
             } else {
                 this.inUse[idx] = true;
                 this.incoming[idx] = [];
-                this.incomingH[idx] = (typeof SharedArrayBuffer !== "undefined" && self.crossOriginIsolated)
+                this.incomingH[idx] = (typeof SharedArrayBuffer !== "undefined" && crossOriginIsolated)
                     ? new Int32Array(new SharedArrayBuffer(4))
                     : new Int32Array(1);
                 this.readHead[idx] = 0;
