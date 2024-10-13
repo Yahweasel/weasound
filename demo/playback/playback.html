@@ -73,7 +73,7 @@
                     [filter_graph, buffersrc_ctx, buffersink_ctx] =
                         await libav.ff_init_filter_graph("aresample", {
                             sample_rate: frames[0].sample_rate,
-                            sample_fmt: frames[0].sample_fmt,
+                            sample_fmt: frames[0].format,
                             channel_layout: frames[0].channel_layout
                         }, {
                             sample_rate: ac.sampleRate,
