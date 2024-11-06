@@ -140,7 +140,7 @@ export class AudioCaptureMSTP extends AudioCapture {
     }
 
     override getSampleRate(): number {
-        return this._input.getSettings().sampleRate;
+        return this._input.getSettings().sampleRate!;
     }
 
     override getLatency(): number {
@@ -149,7 +149,7 @@ export class AudioCaptureMSTP extends AudioCapture {
             // Device latency
             ((<any> inputSettings).latency || 0) +
             // MSTP latency
-            (this._mstpSize / inputSettings.sampleRate)
+            (this._mstpSize / inputSettings.sampleRate!)
         ) * 1000;
     }
 
@@ -177,7 +177,7 @@ export class AudioCaptureMSTP extends AudioCapture {
         // The chunk should be an AudioData
         if (value.format !== "f32-planar") {
             // ACK! We messed up!
-            capCache.mstp = false;
+            capCache!.mstp = false;
             this.close();
             return;
         }
@@ -217,6 +217,7 @@ export class AudioCaptureAWP extends AudioCapture {
     ) {
         super();
         this._worklet = null;
+        this._worker = null;
         this._incoming = null;
         this._incomingH = null;
         this._incomingSize = 128;
@@ -324,16 +325,16 @@ export class AudioCaptureAWP extends AudioCapture {
         const [lo, hi]: [number, number] = ev.data;
         let buf: Float32Array[] = [];
         let len = this._incomingSize = hi - lo;
-        const channels = this._incoming.length;
+        const channels = this._incoming!.length;
         if (len >= 0) {
-            for (const channel of this._incoming)
+            for (const channel of this._incoming!)
                 buf.push(channel.slice(lo, hi));
 
         } else {
             // Wraparound
-            const bufLen = this._incoming[0].length;
+            const bufLen = this._incoming![0].length;
             len += bufLen;
-            for (const channel of this._incoming) {
+            for (const channel of this._incoming!) {
                 const part = new Float32Array(len);
                 // Lo part
                 part.set(channel.subarray(lo));
@@ -374,7 +375,7 @@ export class AudioCaptureAWP extends AudioCapture {
      * AWPs pipe by having the worker multiplex.
      */
     override pipe(to: MessagePort, shared = false) {
-        this._worker.postMessage({
+        this._worker!.postMessage({
             c: "out",
             p: to,
             shared
@@ -384,22 +385,22 @@ export class AudioCaptureAWP extends AudioCapture {
     /**
      * The worklet itself.
      */
-    private _worklet: AudioWorkletNode;
+    private _worklet: AudioWorkletNode | null;
 
     /**
      * The worklet redirects via a worker.
      */
-    private _worker: Worker;
+    private _worker: Worker | null;
 
     /**
      * Incoming data.
      */
-    private _incoming: Float32Array[];
+    private _incoming: Float32Array[] | null;
 
     /**
      * Incoming data communication buffer (read position, write position).
      */
-    private _incomingH: Int32Array;
+    private _incomingH: Int32Array | null;
 
     /**
      * Size of packets coming from the worklets.
@@ -409,7 +410,7 @@ export class AudioCaptureAWP extends AudioCapture {
     /**
      * Worker thread waiting for new incoming data.
      */
-    private _waiter: Worker;
+    private _waiter: Worker | null;
 }
 
 /**
@@ -421,6 +422,9 @@ export class AudioCaptureMR extends AudioCapture {
         private _mimeType: string
     ) {
         super();
+        this._libav = null;
+        this._mr = null;
+        this._refreshTimeout = null;
         this._packetSize = 1024;
     }
 
@@ -462,7 +466,7 @@ export class AudioCaptureMR extends AudioCapture {
         const mr = this._mr;
         const libav = this._libav = await LibAV.LibAV();
         const buf: Blob[] = [];
-        let bufWaiter: (val:unknown)=>unknown = null;
+        let bufWaiter: ((val:unknown)=>unknown) | null = null;
 
         mr.ondataavailable = ev => {
             buf.push(ev.data);
@@ -476,11 +480,11 @@ export class AudioCaptureMR extends AudioCapture {
 
         async function get() {
             if (buf.length)
-                return buf.shift();
+                return buf.shift()!;
             await new Promise(res => {
                 bufWaiter = res;
             });
-            return buf.shift();
+            return buf.shift()!;
         }
 
         (async () => {
@@ -619,12 +623,12 @@ export class AudioCaptureMR extends AudioCapture {
     /**
      * The libav instance.
      */
-    private _libav: libavT.LibAV;
+    private _libav: libavT.LibAV | null;
 
     /**
      * The MediaRecorder.
      */
-    private _mr: MediaRecorder;
+    private _mr: MediaRecorder | null;
 
     /**
      * Timeout to refresh.
@@ -696,7 +700,7 @@ export class AudioCaptureSP extends AudioCapture {
 }
 
 // Cache of supported options (at this stage)
-let capCache: Record<string, boolean> = null;
+let capCache: Record<string, boolean> | null = null;
 
 /**
  * Create an appropriate audio capture from an AudioContext and an input.
@@ -714,33 +718,33 @@ export async function createAudioCaptureNoBidir(
         capCache = Object.create(null);
 
         if (typeof MediaStreamTrackProcessor !== "undefined")
-            capCache.mstp = true;
+            capCache!.mstp = true;
         if (util.supportsMediaRecorder(null, "video/x-matroska; codecs=pcm"))
-            capCache.mr = true;
+            capCache!.mr = true;
         if (util.supportsMediaRecorder(null, "audio/webm; codecs=opus"))
-            capCache.mropus = true;
+            capCache!.mropus = true;
         if (typeof AudioWorkletNode !== "undefined")
-            capCache.awp = true;
-        if (ac.createScriptProcessor)
-            capCache.sp = true;
+            capCache!.awp = true;
+        if ((<any> ac).createScriptProcessor)
+            capCache!.sp = true;
     }
 
     // Choose an option
     let choice = opts.demandedType;
-    if (!choice) {
-        if (capCache[opts.preferredType])
+    if (!choice && opts.preferredType) {
+        if (capCache![opts.preferredType])
             choice = opts.preferredType;
     }
     if (!choice) {
-        if (isMediaStream && capCache.mstp)
+        if (isMediaStream && capCache!.mstp)
             choice = "mstp";
         else if (isMediaStream &&
-                 capCache.mr &&
+                 capCache!.mr &&
                  util.bugPreferMediaRecorderPCM() &&
                  util.supportsMediaRecorder(<MediaStream> ms,
                      "video/x-matroska; codecs=pcm"))
             choice = "mr";
-        else if (capCache.awp && !util.isSafari())
+        else if (capCache!.awp && !util.isSafari())
             choice = "awp";
         else
             choice = "sp";
@@ -764,20 +768,20 @@ export async function createAudioCaptureNoBidir(
 
     // Now turn it into a node
     let node = <AudioNode> ms;
+    let realMS: MediaStream | null = null;
     if ((<MediaStream> ms).getAudioTracks) {
         // Looks like a media stream
-        node = ac.createMediaStreamSource(<MediaStream> ms);
-    } else {
-        ms = null;
+        realMS = <MediaStream> ms;
+        node = ac.createMediaStreamSource(realMS);
     }
 
     if (choice === "awp") {
-        const ret = new AudioCaptureAWP(ac, <MediaStream> ms, node);
+        const ret = new AudioCaptureAWP(ac, realMS, node);
         await ret.init();
         return ret;
 
     } else {
-        return new AudioCaptureSP(ac, <MediaStream> ms, node);
+        return new AudioCaptureSP(ac, realMS, node);
 
     }
 }

@@ -126,14 +126,14 @@ export abstract class AudioPlayback extends events.EventEmitter {
      * Get the underlying AudioNode, *if* there is a unique audio node for this
      * playback.
      */
-    unsharedNode(): AudioNode {
+    unsharedNode(): AudioNode | null {
         return null;
     }
 
     /**
      * Get the underlying AudioNode, if it's shared.
      */
-    sharedNode(): AudioNode {
+    sharedNode(): AudioNode | null {
         return null;
     }
 
@@ -254,7 +254,7 @@ export class AudioPlaybackAWP extends AudioPlayback {
         const now = performance.now();
         const time = data[0].length / this._ac.sampleRate * 1000;
 
-        this._worklet.port.postMessage(data, data.map(x => x.buffer));
+        this._worklet!.port.postMessage(data, data.map(x => x.buffer));
 
         // Estimate the delay (as we don't get feedback from the worklet)
         if (this._endTime > now)
@@ -273,7 +273,7 @@ export class AudioPlaybackAWP extends AudioPlayback {
      * We can connect a message port directly.
      */
     override pipeFrom(port: MessagePort) {
-        this._worklet.port.postMessage({c: "in", p: port}, [port]);
+        this._worklet!.port.postMessage({c: "in", p: port}, [port]);
     }
 
     override channels(): number {
@@ -297,7 +297,7 @@ export class AudioPlaybackAWP extends AudioPlayback {
     close() {
         if (this._worklet) {
             const worklet = this._worklet;
-            this._input.disconnect(worklet);
+            this._input!.disconnect(worklet);
             worklet.port.postMessage({c: "done"});
         }
     }
@@ -305,12 +305,12 @@ export class AudioPlaybackAWP extends AudioPlayback {
     /**
      * Blank-generating input node.
      */
-    private _input: AudioNode;
+    private _input: AudioNode | null;
 
     /**
      * The worklet itself.
      */
-    private _worklet: AudioWorkletNode;
+    private _worklet: AudioWorkletNode | null;
 
     /**
      * End time of the most recent buffer.
@@ -408,7 +408,7 @@ export class AudioPlaybackSharedAWP extends AudioPlayback {
      * Get the underlying AudioNode.
      */
     override sharedNode() {
-        return this._ac.rtePlaySharedWorklet;
+        return this._ac.rtePlaySharedWorklet || null;
     }
 
     /**
@@ -425,12 +425,12 @@ export class AudioPlaybackSharedAWP extends AudioPlayback {
     /**
      * Blank-generating input node.
      */
-    private _input: AudioNode;
+    private _input: AudioNode | null;
 
     /**
      * The port to communicate with the worklet.
      */
-    private _port: MessagePort;
+    private _port: MessagePort | null;
 
     /**
      * Estimated end time of the current samples.
@@ -590,7 +590,7 @@ export class AudioPlaybackSP extends AudioPlayback {
 }
 
 // Cache of supported options
-let playCache: Record<string, boolean> = null;
+let playCache: Record<string, boolean> | null = null;
 
 /**
  * Create an appropriate audio playback from an AudioContext.
@@ -603,25 +603,25 @@ export async function createAudioPlaybackNoBidir(
         // Figure out what we support
         playCache = Object.create(null);
 
-        playCache.ab = true;
+        playCache!.ab = true;
         if (typeof AudioWorkletNode !== "undefined") {
-            playCache["shared-awp"] = true;
-            playCache.awp = true;
+            playCache!["shared-awp"] = true;
+            playCache!.awp = true;
         }
-        if (ac.createScriptProcessor)
-            playCache.sp = true;
+        if ((<any> ac).createScriptProcessor)
+            playCache!.sp = true;
     }
 
     // Choose one
     let choice = opts.demandedType;
-    if (!choice) {
-        if (playCache[opts.preferredType])
+    if (!choice && opts.preferredType) {
+        if (playCache![opts.preferredType])
             choice = opts.preferredType;
     }
     if (!choice) {
         if (!util.bugUnreliableAudioBuffers())
             choice = "ab";
-        else if (playCache["shared-awp"])
+        else if (playCache!["shared-awp"])
             choice = "shared-awp";
         else
             choice = "sp";

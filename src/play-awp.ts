@@ -38,7 +38,7 @@ declare function registerProcessor(
     ) => AudioWorkletProcessor) & {
         parameterDescriptors?: any[];
     }
-);
+): void;
 
 // Size of a shared buffer
 const bufSz = 96000;
@@ -60,7 +60,7 @@ class PlaybackProcessor extends AudioWorkletProcessor {
     constructor(options?: AudioWorkletNodeOptions) {
         super(options);
 
-        const sampleRate = options.parameterData.sampleRate;
+        const sampleRate = options!.parameterData!.sampleRate;
 
         // Start assuming unshared, so create our own ring buffer
         this.incoming = [];
@@ -114,7 +114,7 @@ class PlaybackProcessor extends AudioWorkletProcessor {
             this.readHead = Atomics.load(msg.head, 0);
 
         } else if (msg.c === "in") {
-            msg.p.onmessage = ev => {
+            (<MessagePort> msg.p).onmessage = ev => {
                 this.onmessage(ev);
             };
 

@@ -219,13 +219,13 @@ export class AudioBidirSP extends AudioBidir {
      * A null source used before input has begun.
      * @private
      */
-    _null: ConstantSourceNode;
+    _null: ConstantSourceNode | null;
 
     /**
      * The associated capture node, if any.
      * @private
      */
-    _capture: AudioBidirSPCapture;
+    _capture: AudioBidirSPCapture | null;
 
     /**
      * The associated playback nodes.
@@ -440,13 +440,13 @@ export async function createAudioCapture(
         if (!ab)
             ab = acp.rteAb = new AudioBidirSP(ac);
         let node = <AudioNode> ms;
+        let realMS: MediaStream | null = null;
         if ((<MediaStream> ms).getAudioTracks) {
             // Looks like a MediaStream
+            realMS = <MediaStream> ms;
             node = ac.createMediaStreamSource(<MediaStream> ms);
-        } else {
-            ms = null;
         }
-        return ab.createCapture(<MediaStream> ms, node);
+        return ab.createCapture(realMS, node);
     }
 
     return audioCapture.createAudioCaptureNoBidir(ac, ms, opts);

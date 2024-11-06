@@ -22,18 +22,6 @@ export default {
     ],
     context: "this",
     plugins: [
-        typescript({
-            compilerOptions: {
-                target: "es5",
-                lib: ["es2015", "dom"]
-            },
-            exclude: [
-                "src/cap-awp.ts",
-                "src/cap-worker.ts",
-                "src/cap-worker-waiter.ts",
-                "src/play-awp.ts",
-                "src/play-shared-awp.ts"
-            ]
-        })
+        typescript()
     ]
 };

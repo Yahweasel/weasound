@@ -38,7 +38,7 @@ declare function registerProcessor(
     ) => AudioWorkletProcessor) & {
         parameterDescriptors?: any[];
     }
-);
+): void;
 
 // Size of a shared buffer
 const bufSz = 96000;
@@ -61,7 +61,7 @@ class SharedPlaybackProcessor extends AudioWorkletProcessor {
     constructor(options?: AudioWorkletNodeOptions) {
         super(options);
 
-        const sampleRate = options.parameterData.sampleRate;
+        const sampleRate = options!.parameterData!.sampleRate;
 
         // Start with empty buffers
         this.inUse = [];
@@ -138,7 +138,7 @@ class SharedPlaybackProcessor extends AudioWorkletProcessor {
                 this.readHead[idx] = 0;
                 this.playing[idx] = false;
             }
-            msg.p.onmessage = ev => {
+            (<MessagePort> msg.p).onmessage = ev => {
                 this.onmessage(idx, ev);
             };
 

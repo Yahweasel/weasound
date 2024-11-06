@@ -11,7 +11,7 @@ dist/weasound.min.js: dist/weasound.js node_modules/.bin/tsc
 	true
 
 %-js.ts: %.ts node_modules/.bin/tsc
-	./node_modules/.bin/tsc --target es2017 --lib es2017,dom $< \
+	./node_modules/.bin/tsc --strict --target es2017 --lib es2017,dom $< \
 		--outFile $@.tmp
 	./src/build-sourcemod.js < $@.tmp > $@
 	rm -f $@.tmp

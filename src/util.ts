@@ -74,7 +74,7 @@ export function bugPreferMediaRecorderPCM(): boolean {
  * reliably, so a MediaStream can be provided to give a more reliable result.
  */
 export function supportsMediaRecorder(
-    ms: MediaStream & {rteSupportsMediaRecorder?: Record<string, boolean>},
+    ms: (MediaStream & {rteSupportsMediaRecorder?: Record<string, boolean>}) | null,
     mimeType: string
 ): boolean {
     if (typeof MediaRecorder === "undefined" ||
@@ -87,8 +87,8 @@ export function supportsMediaRecorder(
         return true;
     if (typeof ms.rteSupportsMediaRecorder !== "object")
         ms.rteSupportsMediaRecorder = Object.create(null);
-    if (typeof ms.rteSupportsMediaRecorder[mimeType] === "boolean")
-        return ms.rteSupportsMediaRecorder[mimeType];
+    if (typeof ms.rteSupportsMediaRecorder![mimeType] === "boolean")
+        return ms.rteSupportsMediaRecorder![mimeType];
 
     // Need to actually try it
     try {
@@ -96,12 +96,12 @@ export function supportsMediaRecorder(
         mr.ondataavailable = () => {};
         mr.start(20);
         mr.stop();
-        ms.rteSupportsMediaRecorder[mimeType] = true;
+        ms.rteSupportsMediaRecorder![mimeType] = true;
     } catch (ex) {
-        ms.rteSupportsMediaRecorder[mimeType] = false;
+        ms.rteSupportsMediaRecorder![mimeType] = false;
     }
 
-    return ms.rteSupportsMediaRecorder[mimeType];
+    return ms.rteSupportsMediaRecorder![mimeType];
 }
 
 /**
