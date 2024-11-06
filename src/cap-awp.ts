@@ -38,7 +38,7 @@ declare function registerProcessor(
     ) => AudioWorkletProcessor) & {
         parameterDescriptors?: any[];
     }
-);
+): void;
 
 // Size of our shared buffer
 const bufSz = 96000;
@@ -47,13 +47,13 @@ const bufSz = 96000;
 class CaptureProcessor extends AudioWorkletProcessor {
     canShared: boolean;
     setup: boolean;
-    out: MessagePort;
+    out: MessagePort | null;
     done: boolean;
 
     /* OUTGOING: a number of shared buffers equal to the number of channels,
      * and a shared read/write head */
-    outgoing: Float32Array[];
-    outgoingH: Int32Array;
+    outgoing: Float32Array[] | null;
+    outgoingH: Int32Array | null;
 
     constructor(options?: AudioWorkletNodeOptions) {
         super(options);
@@ -61,6 +61,8 @@ class CaptureProcessor extends AudioWorkletProcessor {
         this.setup = false;
         this.out = null;
         this.done = false;
+        this.outgoing = null;
+        this.outgoingH = null;
 
         // Can we use shared memory?
         this.canShared =
@@ -136,25 +138,25 @@ class CaptureProcessor extends AudioWorkletProcessor {
         // Transmit our current data
         if (this.canShared) {
             // Write it into the buffer
-            let writeHead = this.outgoingH[0];
+            let writeHead = this.outgoingH![0];
             const len = inp[0].length;
             if (writeHead + len > bufSz) {
                 // We wrap around
                 const brk = bufSz - writeHead;
-                for (let i = 0; i < this.outgoing.length; i++) {
-                    this.outgoing[i].set(inp[i%inp.length].subarray(0, brk), writeHead);
-                    this.outgoing[i].set(inp[i%inp.length].subarray(brk), 0);
+                for (let i = 0; i < this.outgoing!.length; i++) {
+                    this.outgoing![i].set(inp[i%inp.length].subarray(0, brk), writeHead);
+                    this.outgoing![i].set(inp[i%inp.length].subarray(brk), 0);
                 }
             } else {
                 // Simple case
-                for (let i = 0; i < this.outgoing.length; i++)
-                    this.outgoing[i].set(inp[i%inp.length], writeHead);
+                for (let i = 0; i < this.outgoing!.length; i++)
+                    this.outgoing![i].set(inp[i%inp.length], writeHead);
             }
             writeHead = (writeHead + len) % bufSz;
-            Atomics.store(this.outgoingH, 0, writeHead);
+            Atomics.store(this.outgoingH!, 0, writeHead);
 
             // Notify the worker
-            Atomics.notify(this.outgoingH, 0);
+            Atomics.notify(this.outgoingH!, 0);
 
         } else {
             // Just send the data. Minimize allocation by sending plain.

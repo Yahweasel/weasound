@@ -24,12 +24,12 @@ const canShared =
     self.crossOriginIsolated;
 
 // Incoming buffers if shared memory is used
-let incoming: Float32Array[] = null;
-let incomingH: Int32Array = null;
-let outgoing: Float32Array[] = null;
+let incoming: Float32Array[] | null = null;
+let incomingH: Int32Array | null = null;
+let outgoing: Float32Array[] | null = null;
 
 // Waiter if we're using shared memory
-let waiter: Worker = null;
+let waiter: Worker | null = null;
 
 // All of our targets/receivers
 let receivers: Receiver[] = [];
@@ -51,9 +51,9 @@ function awpMessage(ev: MessageEvent) {
         incomingH = msg.head;
 
         // Wait for data
-        let prevVal = Atomics.load(incomingH, 0);
-        while (Atomics.wait(incomingH, 0, prevVal)) {
-            const newVal = Atomics.load(incomingH, 0);
+        let prevVal = Atomics.load(incomingH!, 0);
+        while (Atomics.wait(incomingH!, 0, prevVal)) {
+            const newVal = Atomics.load(incomingH!, 0);
             if (prevVal !== newVal) {
                 onSharedIn(prevVal, newVal);
                 prevVal = newVal;
@@ -68,20 +68,20 @@ function awpMessage(ev: MessageEvent) {
 function onSharedIn(lo: number, hi: number) {
     // Copy it into buffers
     let len = hi - lo;
-    const channels = incoming.length;
+    const channels = incoming!.length;
     if (len >= 0) {
         outgoingAlloc(len);
-        for (let ci = 0; ci < incoming.length; ci++)
-            outgoing[ci].set(incoming[ci].subarray(lo, hi));
+        for (let ci = 0; ci < incoming!.length; ci++)
+            outgoing![ci].set(incoming![ci].subarray(lo, hi));
 
     } else {
         // Wraparound
-        const bufLen = incoming[0].length;
+        const bufLen = incoming![0].length;
         len += bufLen;
         outgoingAlloc(len);
-        for (let ci = 0; ci < incoming.length; ci++) {
-            const ic = incoming[ci];
-            const oc = outgoing[ci];
+        for (let ci = 0; ci < incoming!.length; ci++) {
+            const ic = incoming![ci];
+            const oc = outgoing![ci];
             // Lo part
             oc.set(ic.subarray(lo));
             // Hi part
@@ -92,7 +92,7 @@ function onSharedIn(lo: number, hi: number) {
 
     // And send it
     for (const receiver of receivers)
-        receiver.send(outgoing, len);
+        receiver.send(outgoing!, len);
 }
 
 /**
@@ -101,7 +101,7 @@ function onSharedIn(lo: number, hi: number) {
 function outgoingAlloc(len: number) {
     if (outgoing === null)
         outgoing = [];
-    while (outgoing.length < incoming.length)
+    while (outgoing.length < incoming!.length)
         outgoing.push(new Float32Array(len));
     for (let ci = 0; ci < outgoing.length; ci++) {
         if (outgoing[ci].length < len)
@@ -155,24 +155,24 @@ class Receiver {
 
         if (this.shared) {
             // Write it into the buffer
-            let writeHead = this.outgoingH[0];
+            let writeHead = this.outgoingH![0];
             if (writeHead + len > bufSz) {
                 // We wrap around
                 const brk = bufSz - writeHead;
-                for (let i = 0; i < this.outgoing.length; i++) {
-                    this.outgoing[i].set(data[i%data.length].subarray(0, brk), writeHead);
-                    this.outgoing[i].set(data[i%data.length].subarray(brk, len), 0);
+                for (let i = 0; i < this.outgoing!.length; i++) {
+                    this.outgoing![i].set(data[i%data.length].subarray(0, brk), writeHead);
+                    this.outgoing![i].set(data[i%data.length].subarray(brk, len), 0);
                 }
             } else {
                 // Simple case
-                for (let i = 0; i < this.outgoing.length; i++)
-                    this.outgoing[i].set(data[i%data.length].subarray(0, len), writeHead);
+                for (let i = 0; i < this.outgoing!.length; i++)
+                    this.outgoing![i].set(data[i%data.length].subarray(0, len), writeHead);
             }
             writeHead = (writeHead + len) % bufSz;
-            Atomics.store(this.outgoingH, 0, writeHead);
+            Atomics.store(this.outgoingH!, 0, writeHead);
 
             // Notify the worker
-            Atomics.notify(this.outgoingH, 0);
+            Atomics.notify(this.outgoingH!, 0);
 
         } else {
             // Fix it up if necessary by reallocating
@@ -195,12 +195,12 @@ class Receiver {
     /**
      * The outgoing data, if shared.
      */
-    private outgoing: Float32Array[];
+    private outgoing: Float32Array[] | null;
 
     /**
      * The write head, if shared.
      */
-    private outgoingH: Int32Array;
+    private outgoingH: Int32Array | null;
 }
 
 /**
