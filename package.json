@@ -4,6 +4,13 @@
   "description": "Portable PCM audio capture and playback for browsers",
   "main": "dist/weasound.min.js",
   "types": "src/main.ts",
+  "exports": {
+      ".": {
+          "module": "./dist/weasound.min.mjs",
+          "types": "./src/main.ts",
+          "default": "./dist/weasound.min.js"
+      }
+  },
   "scripts": {
     "build": "make -j9",
     "clean": "make clean",
