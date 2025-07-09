@@ -37,7 +37,7 @@ let receivers: Receiver[] = [];
 /**
  * Message handler for messages from the AWP.
  */
-function awpMessage(ev: MessageEvent) {
+async function awpMessage(ev: MessageEvent) {
     const msg = ev.data;
     if (msg.length) {
         // It's raw data
@@ -58,6 +58,9 @@ function awpMessage(ev: MessageEvent) {
                 onSharedIn(prevVal, newVal);
                 prevVal = newVal;
             }
+
+            // Allow other messages to come in
+            await new Promise(res => setTimeout(res, 0));
         }
     }
 }
