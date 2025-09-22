@@ -736,16 +736,28 @@ export async function createAudioCaptureNoBidir(
             choice = opts.preferredType;
     }
     if (!choice) {
+        /* MediaStreamTrackProcessor is preferred where available, but it's
+         * only available on Chrome and Chromealikes (as of 2025). But, MSTP
+         * only works on MediaStreams, not arbitrary AudioContext streams. */
         if (isMediaStream && capCache!.mstp)
             choice = "mstp";
+        /* In theory this case should never arise, but if Chrome drops
+         * MediaStreamTrackProcessor support or that breaks, this will be
+         * preferred on non-Android Chrome. */
         else if (isMediaStream &&
                  capCache!.mr &&
                  util.bugPreferMediaRecorderPCM() &&
                  util.supportsMediaRecorder(<MediaStream> ms,
                      "video/x-matroska; codecs=pcm"))
             choice = "mr";
-        else if (capCache!.awp && !util.isSafari())
+        /* AudioWorkletProcessors are supposed to be the right way to handle
+         * audio nowadays. Unfortunately, every implementation is garbage (as of
+         * 2025). */
+        else if (capCache!.awp && !util.isSafari() && !util.isFirefox())
             choice = "awp";
+        /* In theory ScriptProcessor is the last resort. In practice, both
+         * Firefox and Safari implement every other option so poorly that
+         * ScriptProcessor is the *only* resort. */
         else
             choice = "sp";
     }
