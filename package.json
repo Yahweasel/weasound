@@ -1,6 +1,6 @@
 {
   "name": "weasound",
-  "version": "1.2.7",
+  "version": "1.2.8",
   "description": "Portable PCM audio capture and playback for browsers",
   "main": "dist/weasound.min.js",
   "types": "src/main.ts",
