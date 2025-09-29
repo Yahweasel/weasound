@@ -1,0 +1,122 @@
+<!doctype html>
+<!--
+ * This (un)license applies only to this sample code, and not to Weasound as a
+ * whole:
+ *
+ * This is free and unencumbered software released into the public domain.
+ *
+ * Anyone is free to copy, modify, publish, use, compile, sell, or distribute
+ * this software, either in source code form or as a compiled binary, for any
+ * purpose, commercial or non-commercial, and by any means.
+ *
+ * In jurisdictions that recognize copyright laws, the author or authors of
+ * this software dedicate any and all copyright interest in the software to the
+ * public domain. We make this dedication for the benefit of the public at
+ * large and to the detriment of our heirs and successors. We intend this
+ * dedication to be an overt act of relinquishment in perpetuity of all present
+ * and future rights to this software under copyright law.
+ *
+ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<html>
+    <head>
+        <meta charset="utf8" />
+        <title>Loopback demo</title>
+    </head>
+    <body>
+        <script type="text/javascript" src="../../dist/weasound.min.js"></script>
+        
+        <script type="text/javascript">LibAV = {base: "../../node_modules/@libav.js/variant-default/dist"};</script>
+        <script type="text/javascript" src="../../node_modules/@libav.js/variant-default/dist/libav-6.8.8.0-default.js"></script>
+
+        <script type="text/javascript">
+            async function go() {
+                const capMethodBox = document.getElementById("cap-method");
+                const capMethod = capMethodBox.value;
+
+                const msPromise = navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: false
+                    }
+                });
+
+                const fhPromise = window.showSaveFilePicker({
+                    startIn: "downloads",
+                    suggestedName: `out-${capMethod}.wav`,
+                    types: [{
+                        description: "Wave file",
+                        accept: { "audio/wav": [".wav"] }
+                    }]
+                });
+
+                const [ms, fh] = [await msPromise, await fhPromise];
+                const ac = new AudioContext();
+
+                // Create a capture
+                const capture = await Weasound.createAudioCapture(ac, ms, {
+                    demandedType: capMethod
+                });
+
+                // Create the write stream
+                const fw = await fh.createWritable();
+                fw.write("RIFF");
+                fw.write(new Uint8Array([0, 0, 0, 0]));
+                fw.write("WAVEfmt ");
+                const sampleRate = capture.getSampleRate();
+                const bps = sampleRate * 4;
+                fw.write(new Uint8Array([
+                    40, 0, 0, 0, // cksize
+                    0xfe, 0xff, // wFormatTag = PCM
+                    1, 0, // nChannels = 1
+                    // nSamplesPerSec
+                    sampleRate & 0xff, (sampleRate >> 8) & 0xff,
+                    (sampleRate >> 16) & 0xff, (sampleRate >> 24) & 0xff,
+                    // nAvgBytesPerSec
+                    bps & 0xff, (bps >> 8) & 0xff,
+                    (bps >> 16) & 0xff, (bps >> 24) & 0xff,
+                    4, 0, // nBlockAlign
+                    32, 0, // wBitsPerSample
+                    22, 0, // cbSize
+                    32, 0, // wValidBitsPerSample
+                    4, 0, 0, 0, // dwChannelMask
+                    3, 0, 0, 0, 0, 0, 0x10, 0, // sub-format GUID
+                    0x80, 0, 0, 0xaa, 0, 0x38, 0x9b, 0x71
+                ]));
+                fw.write("fact")
+                fw.write(new Uint8Array([
+                    4, 0, 0, 0, 0, 0xe0, 0xb4, 1
+                ]));
+                fw.write("data");
+                fw.write(new Uint8Array([0xff, 0xff, 0xff, 0xff]));
+
+                document.getElementById("stop").onclick = () => {
+                    capture.close();
+                    fw.close();
+                };
+
+                // Pipe the data thru
+                capture.on("data", async data => {
+                    fw.write(data[0]);
+                });
+            }
+        </script>
+
+        <label for="cap-method">Capture type:</label>
+        <select name="cap-method" id="cap-method">
+            <option value="">Default</option>
+            <option value="shared-sp">Shared ScriptProcessor</option>
+            <option value="mstp">MediaStreamTrackProcessor (Chrome only)</option>
+            <option value="awp">AudioWorkletProcessor</option>
+            <option value="mr">MediaRecorder PCM (Chrome only)</option>
+            <option value="mropus">MediaRecorder Opus (lossy)</option>
+            <option value="sp">ScriptProcessor</option>
+        </select><br/>
+        <button onclick="go();">Go</button>
+        <button id="stop">Stop</button>
+    </body>
+</html>
