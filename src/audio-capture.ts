@@ -21,7 +21,7 @@ import * as capWorkerWaiter from "./cap-worker-waiter-js";
 import * as events from "./events";
 import * as util from "./util";
 
-import type * as libavT from "libav.js";
+import type * as libavT from "@libav.js/types";
 declare let LibAV: libavT.LibAVWrapper;
 
 declare let MediaStreamTrackProcessor: any;
@@ -490,13 +490,10 @@ export class AudioCaptureMR extends AudioCapture {
         (async () => {
             await libav.mkreaderdev("in.mkv");
 
-            // First, get the first 64k so we have a header
-            let rd = 0;
-            while (rd < 65536) {
+            libav.onread = async () => {
                 const part = await (await get()).arrayBuffer();
                 await libav.ff_reader_dev_send("in.mkv", new Uint8Array(part));
-                rd += part.byteLength;
-            }
+            };
 
             // Start demuxing
             const [fmt_ctx, streams] =
@@ -536,25 +533,18 @@ export class AudioCaptureMR extends AudioCapture {
             while (true) {
                 // Demux
                 const [rcode, parts] =
-                    await libav.ff_read_multi(fmt_ctx, pkt, "in.mkv", {
-                        devLimit: 1024,
+                    await libav.ff_read_frame_multi(fmt_ctx, pkt, {
+                        limit: 1,
                         unify: false
                     });
 
                 const packets = <libavT.Packet[]> <any> parts[sidx];
 
                 if (!packets || !packets.length) {
-                    if (rcode === -libav.EAGAIN) {
-                        // Need more data
-                        const part = await (await get()).arrayBuffer();
-                        await libav.ff_reader_dev_send(
-                            "in.mkv", new Uint8Array(part));
-                        continue;
-                    } else if (rcode < 0) {
+                    if (rcode < 0 && rcode !== -libav.EAGAIN)
                         break;
-                    } else {
+                    else
                         continue;
-                    }
                 }
 
                 // Decode

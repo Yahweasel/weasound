@@ -5,11 +5,11 @@
   "main": "dist/weasound.min.js",
   "types": "src/main.ts",
   "exports": {
-      ".": {
-          "module": "./dist/weasound.min.mjs",
-          "types": "./src/main.ts",
-          "default": "./dist/weasound.min.js"
-      }
+    ".": {
+      "module": "./dist/weasound.min.mjs",
+      "types": "./src/main.ts",
+      "default": "./dist/weasound.min.js"
+    }
   },
   "scripts": {
     "build": "make -j9",
@@ -30,9 +30,10 @@
   "author": "Yahweasel",
   "license": "ISC",
   "devDependencies": {
+    "@libav.js/types": "^6.8.8",
+    "@libav.js/variant-default": "6.8.8",
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^11.1.6",
-    "libav.js": "4.5.6",
     "rollup": "^4.17.2",
     "terser": "^5.31.0",
     "tslib": "^2.6.3",
